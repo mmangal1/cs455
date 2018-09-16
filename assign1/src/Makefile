@@ -1,9 +1,9 @@
 CFLAGS = `pkg-config --libs --cflags opencv` -std=c++11
 
-all: q1
+all: assign1
 
-q1: q1.cpp
-	g++ $(CFLAGS) q1.cpp -o q1
+assign1: assign1.cpp
+	g++ $(CFLAGS) assign1.cpp -o assign1
 
 clean:
-	rm q1
+	rm assign1

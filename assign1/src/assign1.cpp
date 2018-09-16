@@ -1,4 +1,5 @@
 #include <iostream>
+#include <queue>
 #include <opencv/cv.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -77,6 +78,7 @@ Mat createBinaryImage(Mat img){
 		threshold += x * histogram[x];
 	}
 	threshold = threshold/total_pixels;
+	cout << "Threshold Value: " << threshold << endl;
 	
 	Mat bin_img = img.clone();
 	for(int x = 0; x < bin_img.rows; x++){
@@ -135,12 +137,96 @@ Mat enhanceImage(Mat img){
 
 }
 
+int connected_comp(Mat& img, int x, int y, uchar set_color, uchar change_color){
+
+    queue<int> queue_x;
+    queue<int> queue_y;
+    queue_x.push(x);
+    queue_y.push(y);
+
+    int pixelCount = 0;
+
+    while(!queue_x.empty() && !queue_y.empty()) {
+        int i = queue_x.front();
+        int j = queue_y.front();
+        queue_x.pop();
+        queue_y.pop();
+
+        // Check if visited before continuing
+        if(img.at<uchar>(i,j) != set_color){
+
+		//increase size of found region
+		pixelCount++;
+
+		//set as visited
+		img.at<uchar>(i,j) = set_color;
+
+		//find surrounding components that have not been visited
+		if(j+1 < img.cols && img.at<uchar>(i,j+1) == change_color){
+			queue_x.push(i);
+			queue_y.push(j+1);
+		}
+		if(j-1 >= 0 && img.at<uchar>(i,j-1) == change_color){
+			queue_x.push(i);	
+			queue_y.push(j-1);
+		}
+		if(i+1 < img.rows && img.at<uchar>(i+1,j) == change_color){
+			queue_x.push(i+1);
+			queue_y.push(j);
+		}
+		if(i-1 >= 0 && img.at<uchar>(i-1,j) == change_color){
+			queue_x.push(i-1);
+			queue_y.push(j);
+		}
+	}
+    }
+   
+    //return size 
+    return pixelCount;
+}
+
+Mat regionDetection(Mat& img){
+	int min_size = INT_MAX;
+	int max_size = 0;
+	int min_x = -1;
+	int min_y = -1;
+	int max_x = -1;
+	int max_y = -1;
+
+	//color all regions with medium color (120)
+	//find the smallest and largest regions
+	for(int x = 0; x < img.rows; x++){
+		for(int y = 0; y < img.cols; y++){
+			if(img.at<uchar>(x,y) == 255){
+				int total_pixels = connected_comp(img, x, y, 120, 255);
+				
+				if(total_pixels < min_size){
+					min_size = total_pixels;
+					min_x = x;
+					min_y = y;
+				}else if(total_pixels > max_size){
+					max_size = total_pixels;
+					max_x = x;
+					max_y = y;
+				}
+
+			}	
+		}
+	}
+
+	//color smallest and largest regions	
+	connected_comp(img, min_x, min_y, 60, 120);
+	connected_comp(img, max_x, max_y, 200, 120);
+	
+	return img;
+}
+
 int main(){
 
 	string night_image = "../img/House_width_times4.bmp";
 	string nyc_image = "../img/NYC_width_4times.bmp";
 	string shape_image = "../img/shapes2.1.bmp";
-	
+	string panic_image = "../img/guide_8bits.bmp";
 
 	//-------------- Original Night Image ---------------
 	Mat img = imread(night_image, IMREAD_GRAYSCALE);
@@ -165,13 +251,13 @@ int main(){
 	namedWindow("Original NYC Image", WINDOW_AUTOSIZE);
 	imshow("Original NYC Image", img);
 	showHistogram(img, "Original NYC Histogram");
-
+/*
 	//-------------- Negative NYC Image ---------------
 	neg_img = createNegImage(img);
 	namedWindow("Negative NYC Image", WINDOW_AUTOSIZE);
 	imshow("Negative NYC Image", neg_img);
 	showHistogram(neg_img, "Negative NYC Histogram");
-	
+*/	
 	//-------------- Enhanced NYC Image ---------------
 	enhanced_img = enhanceImage(img);	
 	namedWindow("Enhanced NYC Image", WINDOW_AUTOSIZE);
@@ -182,15 +268,34 @@ int main(){
 	img = imread(shape_image, IMREAD_GRAYSCALE);
 	namedWindow("Original Shape Image", WINDOW_AUTOSIZE);
 	imshow("Original Shape Image", img);
-	showHistogram(img, "Original Shape Histogram");
 
 	//------------ Binary Shape Image -----------------
 	Mat bin_img = createBinaryImage(img);
 	namedWindow("Binary Shape Image", WINDOW_AUTOSIZE);
 	imshow("Binary Shape Image", bin_img);
-	showHistogram(bin_img, "Binary Shape Histogram");
-	
 
+	//------------ Shape Detection --------------------
+	Mat region = bin_img.clone();
+	region = regionDetection(region);
+	namedWindow("Shape Detection Image", WINDOW_AUTOSIZE);
+	imshow("Shape Detection Image", region);
+
+	//------------ Original Panic Image ---------------
+	img = imread(panic_image, IMREAD_GRAYSCALE);
+	namedWindow("Original Panic Image", WINDOW_AUTOSIZE);
+	imshow("Original Panic Image", img);
+
+	//------------ Binary Panic Image -----------------
+	bin_img = createBinaryImage(img);
+	namedWindow("Binary Panic Image", WINDOW_AUTOSIZE);
+	imshow("Binary Panic Image", bin_img);
+
+	//------------ Panic Region Detection -------------
+	region = bin_img.clone();
+	region = regionDetection(region);
+	namedWindow("Panic Detection Image", WINDOW_AUTOSIZE);
+	imshow("Panic Detection Image", region);
+	
 	waitKey(0);
 	cvDestroyAllWindows();
 
