@@ -63,7 +63,7 @@ Mat unsharp_mask(Mat img, string imname){
 	};
 
 	for(int x = 1; x < new_img.rows-1; x++){
-		for(int y = 1; y < new_img.rows-1; y++){
+		for(int y = 1; y < new_img.cols-1; y++){
 			new_img.at<uchar>(x, y) = GausianMask[0][0] * img.at<uchar>(x-1,y-1) + GausianMask[0][1] * img.at<uchar>(x-1, y) + GausianMask[0][2] * img.at<uchar>(x-1, y+1)
 						+ GausianMask[1][0] * img.at<uchar>(x, y-1)  + GausianMask[1][1] * img.at<uchar>(x, y)   + GausianMask[1][2] * img.at<uchar>(x, y+1)
 						+ GausianMask[2][0] * img.at<uchar>(x+1,y-1) + GausianMask[2][1] * img.at<uchar>(x+1, y) + GausianMask[2][2] * img.at<uchar>(x+1, y+1);
@@ -108,6 +108,72 @@ Mat sobel(Mat img){
 	return new_img;
 }
 
+
+Mat LOGMask(int dim, double sigma, Mat image){
+	const double PI = 3.1415;
+	
+	int MASK[dim][dim];
+	double sigma2 = sigma * sigma;
+
+	double left = pow( 1/(sqrt(2*PI)*sigma2), 2);
+
+	int max = dim/2;
+	int min = -(dim/2);	
+	int x_count = 0;
+
+	for(int y = -dim/2; y <= dim/2; y++){
+		int y_count = 0;
+		for(int x = -dim/2; x <= dim/2; x++){
+			double mid = ((x*x + y*y)/sigma2);
+			double right = exp(mid * -1/2);
+			double val = left * (mid - 2) * right;
+			if(sigma == 5.0){
+				if((y+max) >= 3 && (y+max) <= 7 && (x+max) >= 2 && (x+max) <= 8){
+					val = val;
+				}else{
+					val = val * -1;
+				}
+				MASK[x_count][y_count] = val * 50000;
+			}else{
+				MASK[x_count][y_count] = val * 500;	
+			}
+
+			y_count++;
+		}
+		x_count++;
+	}
+
+	for(int x = 0; x < dim; x++){
+		for(int y = 0; y < dim; y++){
+			cout << MASK[x][y] << '\t';
+		}
+		cout << endl;
+	}
+	cout << endl << endl;
+
+	Mat fin_img = image.clone();
+	for(int x = 0; x < image.rows; x++){
+		for(int y = 0; y < image.cols; y++){
+			fin_img.at<uchar>(x,y) = 0; 
+		}
+	}
+	
+	for(int x = 0; x < fin_img.rows; x++){
+		for(int y = 0; y < fin_img.cols; y++){
+			double sum = 0;
+			for(int i = min; i <= max; i++){
+				for(int j = min; j <= max; j++){
+					sum += MASK[i+max][j+max] * (double)image.at<uchar>(x - i, y - j);
+				}
+			}
+			fin_img.at<uchar>(x,y) = saturate_cast<uchar>(sum);
+		}
+	}
+
+	return fin_img;
+	
+}
+
 int main(){
 	string ant_image = "../img/ant_gray.bmp";
 	string statue_image = "../img/basel_gray.bmp";
@@ -127,6 +193,16 @@ int main(){
 	namedWindow("Sobel Ant Image", WINDOW_AUTOSIZE);
 	imshow("Sobel Ant Image", sobel_ant_img);
 	
+	//-------------- LOG 1.4 Ant Image ----------------------
+	Mat log_ant_img = LOGMask(7, 1.4, ant_img);
+	namedWindow("E1_1", WINDOW_AUTOSIZE);
+	imshow("E1_1", log_ant_img);
+	
+	//-------------- LOG 5.0 Ant Image ----------------------
+	log_ant_img = LOGMask(11, 5.0, ant_img);
+	namedWindow("E1_2", WINDOW_AUTOSIZE);
+	imshow("E1_2", log_ant_img);
+	
 	//-------------- Original Basel Image ---------------
 	Mat statue_img = imread(statue_image, IMREAD_GRAYSCALE);
 	namedWindow("Original Statue Image", WINDOW_AUTOSIZE);
@@ -142,7 +218,15 @@ int main(){
 	namedWindow("Sobel Statue Image", WINDOW_AUTOSIZE);
 	imshow("Sobel Statue Image", sobel_statue_img);
 
-
+	//-------------- LOG 1.4 Basel Image ----------------------
+	Mat log_basel_img = LOGMask(7, 1.4, statue_img);
+	namedWindow("E2_1", WINDOW_AUTOSIZE);
+	imshow("E2_1", log_basel_img);
+	
+	//-------------- LOG 5.0 Ant Image ----------------------
+	log_basel_img = LOGMask(11, 5.0, statue_img);
+	namedWindow("E2_2", WINDOW_AUTOSIZE);
+	imshow("E2_2", log_basel_img);
 
 	waitKey();
 	destroyAllWindows();	
