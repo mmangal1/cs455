@@ -175,6 +175,7 @@ Mat LOGMask(int dim, double sigma, Mat image){
 }
 
 int main(){
+
 	string ant_image = "../img/ant_gray.bmp";
 	string statue_image = "../img/basel_gray.bmp";
 	
