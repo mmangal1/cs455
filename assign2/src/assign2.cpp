@@ -171,7 +171,6 @@ Mat LOGMask(int dim, double sigma, Mat image){
 	}
 
 	return fin_img;
-	
 }
 
 int main(){
